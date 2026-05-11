@@ -1,6 +1,7 @@
 name = "xyzwweb"
 compatibility_date = "2023-12-01"
 
-[pages_build_config]
-build_command = "npm run build"
-destination_dir = "dist"
+# 标准构建配置
+[build]
+command = "npm run build"      # 对应你之前的 build_command
+directory = "dist"             # 对应你之前的 destination_dir (注意 key 的变化)
