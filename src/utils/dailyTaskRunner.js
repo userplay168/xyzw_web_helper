@@ -402,12 +402,13 @@ export class DailyTaskRunner {
       }
     }
 
-    if (!isTaskCompleted(5) && settings.claimHangUp) {
+    // Always claim once per run, even after the daily goal was already claimed.
+    if (settings.claimHangUp) {
       const remaining = this.getTaskState(5).remaining;
-      for (let i = 0; i < remaining; i++) {
+      const claimCount = Math.max(remaining, 1);
+      for (let i = 0; i < claimCount; i++) {
         taskList.push({
-          name: `领取挂机奖励 ${i + 1}/${remaining}`,
-          condition: 5,
+          name: `领取挂机奖励 ${i + 1}/${claimCount}`,
           execute: async () => {
             const interval = this.taskConfig.hangUpClaimInterval;
             if (interval) {
@@ -426,7 +427,7 @@ export class DailyTaskRunner {
               tokenId,
               "system_claimhangupreward",
               {},
-              `领取挂机奖励 ${i + 1}/${remaining}`,
+              `领取挂机奖励 ${i + 1}/${claimCount}`,
             );
           },
         });
@@ -481,10 +482,10 @@ export class DailyTaskRunner {
       });
     }
 
-    if (!isTaskCompleted(14) && settings.claimBottle) {
+    // Restart the bottle timer and claim every run, even after the daily goal was claimed.
+    if (settings.claimBottle) {
       taskList.push({
         name: "停止盐罐计时",
-        condition: 14,
         execute: () =>
           this.executeGameCommand(
             tokenId,
@@ -495,7 +496,6 @@ export class DailyTaskRunner {
       });
       taskList.push({
         name: "开始盐罐计时",
-        condition: 14,
         execute: () =>
           this.executeGameCommand(
             tokenId,
@@ -507,7 +507,6 @@ export class DailyTaskRunner {
 
       taskList.push({
         name: "领取盐罐奖励",
-        condition: 14,
         execute: () =>
           this.executeGameCommand(
             tokenId,
@@ -535,6 +534,21 @@ export class DailyTaskRunner {
             return false;
           }
 
+          const ticketCount = Number(
+            this.roleData?.items?.[1007]?.quantity ?? 0,
+          );
+          const arenaAttempts = Math.min(3, ticketCount);
+          if (arenaAttempts <= 0) {
+            this.log(
+              `咸神门票不足（当前 ${ticketCount} 张），跳过竞技场战斗`,
+              "warning",
+            );
+            return false;
+          }
+          this.log(
+            `当前咸神门票 ${ticketCount} 张，本轮竞技场战斗 ${arenaAttempts} 次`,
+          );
+
           await this.switchToFormationIfNeeded(
             tokenId,
             settings.arenaFormation,
@@ -547,7 +561,6 @@ export class DailyTaskRunner {
             "开始竞技场",
           );
 
-          const arenaAttempts = Math.min(3, this.getTaskState(13).remaining);
           for (let i = 1; i <= arenaAttempts; i++) {
             this.log(`竞技场战斗 ${i}/${arenaAttempts}`);
             const targets = await this.executeGameCommand(
